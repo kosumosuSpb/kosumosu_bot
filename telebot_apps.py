@@ -1,6 +1,7 @@
 import json
 import re
 import requests
+import unittest
 
 
 class APIException(Exception):
@@ -106,8 +107,9 @@ class CurrencyConverter:
         называются так для того, чтобы было сходу понятно даже мне
         """
         # сначала отделяем нужную нам группу текста
-        text = re.search(r'(?:переведи|перевод|c?конвертируй|(?:сколько будет))'
-                         r'.*\s-?(\d+[.,]?\d*\s[A-Za-zА-Яа-яёЁ]{3,}\sв?\s?[A-Za-zА-Яа-яёЁ]{3,})', text)
+        pattern = re.compile(r'(?:переведи|перевод|c?конвертируй|(?:сколько будет))'
+                             r'.*\s-?(\d+[.,]?\d*\s[A-Za-zА-Яа-яёЁ]{3,}\sв?\s?[A-Za-zА-Яа-яёЁ]{3,})', re.I)
+        text = re.search(pattern, text)
         text = text.group(1)
 
         # берём отдельно число
@@ -145,3 +147,19 @@ class CurrencyConverter:
         for key in values.keys():
             if short_value in key:
                 return key
+
+
+class TestOfApps(unittest.TestCase):
+    def test_conversion_requests_lowcase(self):
+        test_str = 'переведи 1 доллар в рубли'
+        test_return = (1, 'доллар', 'рубли')
+        self.assertEqual(CurrencyConverter.parse_convert_request(test_str), test_return)
+
+    def test_conversion_requests_capitalized(self):
+        test_str = 'Переведи 1 доллар в рубли'
+        test_return = (1, 'доллар', 'рубли')
+        self.assertEqual(CurrencyConverter.parse_convert_request(test_str), test_return)
+
+
+if __name__ == '__main__':
+    unittest.main()
