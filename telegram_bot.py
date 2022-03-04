@@ -12,7 +12,7 @@
 
 
 from bot_config import TOKEN
-from telebot_apps import *
+from currency_converter import *
 import telebot
 import re
 
