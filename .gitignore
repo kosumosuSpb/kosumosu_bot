@@ -1,0 +1,6 @@
+.git
+__pycache__
+venv
+.idea
+/inst/
+bot_config.py
