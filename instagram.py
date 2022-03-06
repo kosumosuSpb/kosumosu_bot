@@ -1,13 +1,7 @@
-from instagrapi import Client, exceptions
-from bot_config import INST_LOGIN, INST_PASS
-from datetime import datetime
-import logging
-import os
-
-
 """
 Обёртка для instagrapi, сделана для расширения функционала, 
-например, отслеживания того, кто подписался и отписался за какой-то период 
+например, отслеживания того, кто подписался и отписался за какой-то период.
+В перспективе должен отслеживать любые изменения указанного профиля (если он не закрыт)
 
 пока всё заточено под локальную работу и не привязано к боту
 
@@ -21,35 +15,47 @@ https://github.com/adw0rd/instagrapi
 inst = InstaClient()
 inst.login(login, password)
 
-по-умолчанию ищет их в константах INST_LOGIN и INST_PASS
+если не указать логин и пароль, то по-умолчанию ищет их в константах INST_LOGIN и INST_PASS
+файлы сохраняет в папку ./inst (если её нет, то создаёт)
+конфиги ищет в config.py (сейчас в bot_config.py, но это временно)
 
 что умеет:
-* снимать дамп id подписчиков по введённому имени пользователя и сохранять локально в файл
-- [в процессе] показ разницы между двумя дампами
+* снимать дамп id подписчиков по введённому имени пользователя и сохранять локально в txt
++ показ разницы между двумя дампами
 - кеширование в файл
 - кеширование через редис
 - возможность скачать файл из бота
 - хранение данных в sqLite/MySQL
-- частичное кеширование в БД?
+- работа с БД через ORM
+- отдельный файл с моделями
+- периодические задачи через Celery для автоматизации отслеживания изменений в профиле
+- возможно всё это в связке Flask+Celery+Redis+someDB+someORM (скорее всего PonyORM+MySQL/sqLite)
 - докер
+- логи в файлах
 
 """
 
+from instagrapi import Client, exceptions
+from bot_config import INST_LOGIN, INST_PASS
+from datetime import datetime
+import logging
+import os
+
+
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('InstaClient')
 
 
 class InstaClient(Client):
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
-        self._user_kasmas = 'kasmas'  # чтобы сто раз не вводить свой ник
 
     @staticmethod
     def create_and_login(login=INST_LOGIN, password=INST_PASS):
         """Возвращает залогиненый объект класса"""
         instance = InstaClient()
         if instance.login(login, password):
-            logger.info(f'Пользователь {login} авторизован успешно')
+            logger.info(f'Пользователь {login} авторизован успешно. Имя пользователя - {instance.username}')
             return instance
         else:
             logger.info(f'Авторизовать пользователя {login} не удалось')
@@ -60,10 +66,11 @@ class InstaClient(Client):
         if not user:
             # проверка авторизованности
             if self.username:
+                logger.info(f'Не указан пользователь, берём его из объекта...')
                 user_id = self.user_id
             # если не авторизован, то кидаем исключение
             else:
-                logger.warning('Не указан пользователь!')
+                logger.warning('Не указан пользователь и не выполнена авторизация!')
                 raise exceptions.ClientLoginRequired('Надо залогиниться!')
 
         # если указан id
@@ -75,8 +82,8 @@ class InstaClient(Client):
             try:
                 logger.info(f'Получаем id пользователя {user}...')
                 user_id = self.user_id_from_username(user)
-            except exceptions.ClientNotFoundError:
-                logger.error(f'Пользователь не найден, возможно он не верно указан: {user}')
+            except exceptions.ClientError:
+                logger.error(f'Ошибка! Что-то с запросом. Возможно, не верно указан пользователь: {user}')
                 raise
         return user_id
 
@@ -150,3 +157,6 @@ class InstaClient(Client):
 
     def take_file_dump(self):
         """Принимает файл дампа подписчиков"""
+
+
+logger.info('Hi, InstaClient here')
