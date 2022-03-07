@@ -98,6 +98,12 @@ class InstaClient(Client):
         followers = self.user_followers(user_id)
         logger.info(f'Получено {len(followers)} подписчиков')
 
+        if not followers:
+            logger.info('Нечего сохранять, завершаем работу...')
+            if not self.username:
+                logger.warning('Логин не выполнен, поэтому нельзя было получить подписчиков!')
+            return
+
         # проверяем наличие папки под файлы, если нету - создаём
         if not os.path.isdir('inst'):
             logger.info('Не нашли папку inst, создаём...')
@@ -118,15 +124,19 @@ class InstaClient(Client):
         """Сравнить последний и предпоследний файлы и показать разницу"""
         # получаем список файлов в папке inst
         files = os.listdir(path="./inst")
-        logger.info(f'Файлы: {files}')
-        files = sorted([file for file in files if file[:len(user)] == user])  # берём только нужный юзернейм и сортируем
-        f2, f1 = files[-2:]  # берём последние два - самые поздние
+        logger.debug(f'Файлы: {files}')
 
-        logger.info(f'Берём два последних файла: {f2}, {f1}')
+        files = sorted([file for file in files if file[:len(user)] == user])  # берём только нужный юзернейм и сортируем
+
+        if len(files) < 2:
+            logger.info('Нечего сравнивать, файлов меньше двух')
+            return
+
+        f2, f1 = files[-2:]  # берём последние два - самые поздние
 
         # читаем оба файла. Получим два списка вида ['49520889582\n', '51507879495\n', '50037477495\n', ... ]
         # перевод строки потом надо не забыть убрать. Сразу не убираю, чтобы лишнюю работу не делать
-        logger.info('Открываем оба файла...')
+        logger.info(f'Открываем два последних файла: {f2}, {f1}')
         with open(f'inst/{f2}') as file2, open(f'inst/{f1}') as file1:
             f2 = file2.readlines()
             f1 = file1.readlines()
@@ -148,8 +158,13 @@ class InstaClient(Client):
         gone = [follower[:-1] for follower in difference if follower not in f1]
         gone = self.get_usernames(gone) if not show_id else gone
 
-        print(f'Подписались: {new}\n'
-              f'Отписались: {gone}')
+        logger.info(f'Подписались: {new}\n'
+                    f'Отписались: {gone}')
+
+        return {
+            'Подписались': new,
+            'Отписались': gone
+        }
 
     def get_usernames(self, user_ids: list) -> list:
         """Принимает список id, возвращает список юзернеймов"""
@@ -157,6 +172,9 @@ class InstaClient(Client):
 
     def take_file_dump(self):
         """Принимает файл дампа подписчиков"""
+
+    def find_mutual_followers(self, user1, user2, cache=True):
+        """Находит общих подписчиков между двумя пользователями"""
 
 
 logger.info('Hi, InstaClient here')
